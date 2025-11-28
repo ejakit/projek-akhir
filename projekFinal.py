@@ -103,7 +103,6 @@ def clear_terminal():
     try:
         os.system('cls' if os.name == 'nt' else 'clear')
     except Exception:
-        # Fallback sederhana jika os.system tidak tersedia/ditolak
         print("\n" * 100)
 
 # Dekorasi
@@ -114,7 +113,7 @@ def display(value, fallback="-"):
 
 def input_optional(prompt: str, default: str | None = None) -> str | None:
     """
-    Input string, kalau user kosongin (Enter), balikin default.
+    Input optional
     """
     val = input(prompt).strip()
     return val if val else default
@@ -129,7 +128,7 @@ ALAMAT_MASTER_CONFIG = {
 
 
 def add_alamat( conn, nama_jalan: str, id_kota: int | None, id_kecamatan: int | None, id_provinsi: int | None, ) -> int | None:
-    """ Insert ke tabel alamat, balikin alamat_id. """
+    """ Insert ke tabel alamat  """
     with conn.cursor() as cur:
         cur.execute( """ 
                     INSERT INTO alamat (nama_jalan, id_kota, id_kecamatan, id_provinsi)
@@ -142,8 +141,7 @@ def add_alamat( conn, nama_jalan: str, id_kota: int | None, id_kecamatan: int | 
 
 def pilih_alamat_baru(conn) -> int | None:
     """
-    Interaktif: user pilih provinsi, kota, kecamatan, lalu isi nama_jalan.
-    Return alamat_id (atau None kalau gagal / dibatalkan).
+    user milih alamat baru
     """
     print("\n=== Ubah / Tambah Alamat ===")
 
