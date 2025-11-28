@@ -1852,7 +1852,6 @@ def menu_update_profile(conn, user: dict[str, str | int]) -> None:
 
     if updated:
         print("Profil berhasil diperbarui.")
-        # update juga dict user yang lagi login kalau nama/username kepakai di header
         user["username"] = current["username"]
     else:
         print("Tidak ada perubahan pada profil.")
