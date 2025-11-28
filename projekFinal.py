@@ -146,7 +146,7 @@ def pilih_alamat_baru(conn) -> int | None:
     print("\n=== Ubah / Tambah Alamat ===")
 
     # 1. Pilih provinsi
-    prov_list = get_all_master(conn, "provinsi", "provinsi_id", "nama_provinsi")
+    prov_list = ambil_semua_data_di_alamat(conn, "provinsi", "provinsi_id", "nama_provinsi")
     if not prov_list:
         print("Belum ada data provinsi.")
         return None
@@ -159,7 +159,7 @@ def pilih_alamat_baru(conn) -> int | None:
     id_prov = int(prov_raw) if prov_raw else None
 
     # 2. Pilih kota
-    kota_list = get_all_master(conn, "kota", "kota_id", "nama_kota")
+    kota_list = ambil_semua_data_di_alamat(conn, "kota", "kota_id", "nama_kota")
     if not kota_list:
         print("Belum ada data kota.")
         return None
@@ -172,7 +172,7 @@ def pilih_alamat_baru(conn) -> int | None:
     id_kota = int(kota_raw) if kota_raw else None
 
     # 3. Pilih kecamatan
-    kec_list = get_all_master(conn, "kecamatan", "kecamatan_id", "nama_kecamatan")
+    kec_list = ambil_semua_data_di_alamat(conn, "kecamatan", "kecamatan_id", "nama_kecamatan")
     if not kec_list:
         print("Belum ada data kecamatan.")
         return None
@@ -248,7 +248,7 @@ def pilih_master(conn, jenis: str) -> int | None:
     return pilih_master_alamat(conn, table, id_col, nama_col, jenis)
 
 
-def get_or_create_master(
+def cari_atau_buat_tabel_alamat(
     conn,
     table: str,
     id_col: str,
@@ -276,16 +276,16 @@ def get_or_create_master(
         conn.commit()
         return row[0] if row else None
 
-def get_or_create_alamat_master(conn, jenis: str, nama: str) -> int | None:
+def cari_atau_buat_alamat(conn, jenis: str, nama: str) -> int | None:
     jenis = jenis.lower()
     if jenis not in ALAMAT_MASTER_CONFIG:
         print(f"Jenis '{jenis}' tidak dikenal.")
         return None
 
     table, id_col, nama_col = ALAMAT_MASTER_CONFIG[jenis]
-    return get_or_create_master(conn, table, id_col, nama_col, nama)
+    return cari_atau_buat_tabel_alamat(conn, table, id_col, nama_col, nama)
 
-def get_all_master(
+def ambil_semua_data_di_alamat(
     conn,
     table: str,
     id_col: str,
@@ -313,7 +313,7 @@ def get_all_alamat_master(conn, jenis: str) -> list[tuple[int, str]]:
         return []
 
     table, id_col, nama_col = ALAMAT_MASTER_CONFIG[jenis]
-    return get_all_master(conn, table, id_col, nama_col)
+    return ambil_semua_data_di_alamat(conn, table, id_col, nama_col)
 
 # Fungsi admin
 
@@ -597,9 +597,6 @@ def lihat_data_lahan(conn) -> dict[str, Any]:
             sd.id_user_surveyor,
             us.name               AS nama_surveyor,
 
-            sd.id_user_admin,
-            ua.name               AS nama_admin,
-
             sd.status_survey,
             sd.tanggal_survey,
 
@@ -619,7 +616,6 @@ def lihat_data_lahan(conn) -> dict[str, Any]:
             u_p.name              AS nama_petani
         FROM survey_data sd
         LEFT JOIN users us          ON us.user_id = sd.id_user_surveyor
-        LEFT JOIN users ua          ON ua.user_id = sd.id_user_admin
         LEFT JOIN iklim ik          ON ik.iklim_id = sd.id_iklim
         LEFT JOIN kondisi_tanah kt  ON kt.kondisi_tanah_id = sd.id_tanah
         LEFT JOIN tanaman t         ON t.tanaman_id = sd.id_tanaman
@@ -985,9 +981,9 @@ def buat_alamat(conn) -> int | None:
     nama_kota = input("Nama kota (boleh kosong): ").strip()
     nama_kecamatan = input("Nama kecamatan (boleh kosong): ").strip()
 
-    id_provinsi = get_or_create_alamat_master(conn, "provinsi", nama_provinsi) if nama_provinsi else None
-    id_kota = get_or_create_alamat_master(conn, "kota", nama_kota) if nama_kota else None
-    id_kecamatan = get_or_create_alamat_master(conn, "kecamatan", nama_kecamatan) if nama_kecamatan else None
+    id_provinsi = cari_atau_buat_alamat(conn, "provinsi", nama_provinsi) if nama_provinsi else None
+    id_kota = cari_atau_buat_alamat(conn, "kota", nama_kota) if nama_kota else None
+    id_kecamatan = cari_atau_buat_alamat(conn, "kecamatan", nama_kecamatan) if nama_kecamatan else None
 
     with conn.cursor() as cur:
         cur.execute(
