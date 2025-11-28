@@ -511,7 +511,6 @@ def update_user_profile(
         fields.append("id_alamat = %s")
         values.append(id_alamat)
 
-    # kalau gak ada yang mau diupdate, langsung balik
     if not fields:
         print("Tidak ada data yang diubah.")
         return False
@@ -532,10 +531,7 @@ def update_user_profile(
 
 def lihat_data_lahan(conn) -> dict[str, Any]:
     """
-    Ambil overview data:
-    - user yang berperan sebagai petani
-    - semua lahan + alamat + surveyor + petani
-    - semua survey_data + info iklim, tanah, tanaman + petani
+    Ambil overview data
     """
     cursor = conn.cursor()
 
