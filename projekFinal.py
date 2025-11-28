@@ -807,7 +807,7 @@ def add_tanaman(
     kelembapan: float,  
 ) -> Optional[int]:
     """
-    Tambah tanaman ke tabel tanaman dengan data lingkungan lengkap.
+    Tambah tanaman
     """
     with conn.cursor() as cur:
         cur.execute(
@@ -850,8 +850,7 @@ def add_tanaman(
 
 def delete_tanaman(conn, tanaman_id: int) -> bool:
     """
-    Hapus tanaman berdasarkan tanaman_id.
-    Cek dulu apakah dipakai di survey_data.
+    Hapus tanaman berdasarkan tanaman_id
     """
     with conn.cursor() as cur:
         # Cek apakah dipakai
@@ -871,7 +870,7 @@ def delete_tanaman(conn, tanaman_id: int) -> bool:
 
 def hitung_survey(conn, lahan_id: int) -> int:
     """
-    Hitung berapa kali surveyor melakukan survey.
+    Hitung berapa kali surveyor melakukan survey
     """
     with conn.cursor() as cur:
         cur.execute("SELECT COUNT(*) FROM survey_data WHERE id_lahan = %s", (lahan_id,))
@@ -889,9 +888,7 @@ def add_survey_data(
     status_survey: str = "waiting",
 ) -> Optional[int]:
     """
-    Tambah record ke survey_data sesuai definisi tabel:
-    nama_tanaman, id_user_surveyor, id_user_admin,
-    id_lahan, id_iklim, id_tanah, status_survey, id_tanaman, tanggal_survey.
+    Tambah record ke survey_data
     """
     tanggal = date.today()
 
@@ -932,9 +929,7 @@ def claim_lahan_for_surveyor(
     surveyor_id: int,
 ) -> bool:
     """
-    Coba klaim lahan untuk surveyor.
-    Hanya berhasil kalau id_user_surveyor masih NULL.
-    Return True kalau berhasil, False kalau gagal (sudah diambil orang lain).
+    Coba klaim lahan untuk surveyor
     """
     with conn.cursor() as cur:
         cur.execute(
@@ -1033,122 +1028,6 @@ def hitung_rata_tanah_3_hari_terakhir(conn, lahan_id: int):
         "nutrisi": row[1],
         "kelembapan": row[2],
     }
-
-
-
-def analysis_tanaman_dengan_lahan(conn) -> list[tuple[Any, ...]]:
-    """
-    Join lahan + survey_data + tanaman + user (petani & surveyor) + alamat,
-    disesuaikan dengan schema terbaru (tanaman tidak punya id_user).
-    """
-    query = """
-        SELECT
-            l.lahan_id,
-
-            u_surveyor.user_id   AS surveyor_id,
-            u_surveyor.name      AS nama_surveyor,
-
-            u_petani.user_id     AS petani_id,
-            u_petani.name        AS nama_petani,
-
-            l.ketinggian,
-            a.nama_jalan,
-            kc.nama_kecamatan,
-            k.nama_kota,
-            p.nama_provinsi,
-
-            sd.survey_id,
-            sd.status_survey,
-            sd.tanggal_survey,
-
-            ik.jenis_cuaca,
-            ktan.kondisi_tanah,
-            ktan.ph,
-            ktan.kandungan_nutrisi,
-            ktan.kelembapan,
-
-            t.tanaman_id,
-            t.nama             AS nama_tanaman
-        FROM lahan l
-        LEFT JOIN users u_petani     ON u_petani.user_id      = l.id_user_petani
-        LEFT JOIN users u_surveyor   ON u_surveyor.user_id    = l.id_user_surveyor
-
-        LEFT JOIN alamat a           ON a.alamat_id           = l.id_alamat
-        LEFT JOIN kecamatan kc       ON kc.kecamatan_id       = a.id_kecamatan
-        LEFT JOIN kota k             ON k.kota_id             = a.id_kota
-        LEFT JOIN provinsi p         ON p.provinsi_id         = a.id_provinsi
-
-        LEFT JOIN survey_data sd     ON sd.id_lahan           = l.lahan_id
-        LEFT JOIN iklim ik           ON ik.iklim_id           = sd.id_iklim
-        LEFT JOIN kondisi_tanah ktan ON ktan.kondisi_tanah_id = sd.id_tanah
-
-        LEFT JOIN tanaman t          ON t.tanaman_id          = sd.id_tanaman
-
-        ORDER BY l.lahan_id, sd.survey_id, t.tanaman_id;
-    """
-
-    with conn.cursor() as cur:
-        cur.execute(query)
-        rows = cur.fetchall()
-
-    if not rows:
-        print("\nBelum ada data analisis lahan + tanaman.")
-        return rows
-
-    print("\n=== HASIL ANALISIS LAHAN + TANAMAN ===")
-    for row in rows:
-        (
-            lahan_id,
-            surveyor_id,
-            nama_surveyor,
-            petani_id,
-            nama_petani,
-            ketinggian,
-            nama_jalan,
-            nama_kecamatan,
-            nama_kota,
-            nama_provinsi,
-            survey_id,
-            status_survey,
-            tanggal_survey,
-            jenis_cuaca,
-            kondisi_tanah,
-            ph,
-            kandungan_nutrisi,
-            kelembapan,
-            tanaman_id,
-            nama_tanaman,
-        ) = row
-
-        print(f"\nLahan ID   : {lahan_id}")
-        print(f"  Petani   : {nama_petani} (ID {petani_id})")
-        print(f"  Surveyor : {nama_surveyor} (ID {surveyor_id})")
-        print(f"  Ketinggian : {ketinggian}")
-        print(
-            f"  Alamat   : {nama_jalan}, {nama_kecamatan}, "
-            f"{nama_kota}, {nama_provinsi}"
-        )
-
-        if survey_id is not None:
-            print(f"  Survey ID    : {survey_id}")
-            print(f"  Status       : {status_survey}")
-            print(f"  Tgl Survey   : {tanggal_survey}")
-            print(f"  Iklim        : {jenis_cuaca}")
-            print(
-                f"  Tanah        : {kondisi_tanah} | pH={ph} | "
-                f"Nutrisi={kandungan_nutrisi} | Kelembapan={kelembapan}"
-            )
-        else:
-            print("  Survey       : (belum ada)")
-
-        if tanaman_id is not None:
-            print(
-                f"  Tanaman      : {nama_tanaman} (ID {tanaman_id})"
-            )
-        else:
-            print("  Tanaman      : (belum ada)")
-
-    return rows
 
 
 def lihat_hasil_survey_petani(conn, user: dict[str, Any]) -> list[tuple[Any, ...]]:
@@ -1275,8 +1154,7 @@ def lihat_hasil_survey_petani(conn, user: dict[str, Any]) -> list[tuple[Any, ...
 
 def get_all_tipe_tanaman(conn) -> list[tuple[int, str]]:
     """
-    Ambil semua baris dari tabel tipe_tanaman:
-    (tipe_tanaman_id, jenis_tanaman)
+    Ambil semua baris dari tabel tipe_tanaman
     """
     with conn.cursor() as cur:
         cur.execute(
@@ -1289,7 +1167,7 @@ def get_all_tipe_tanaman(conn) -> list[tuple[int, str]]:
 
 def get_tanaman_by_tipe(conn, tipe_id: int) -> list[tuple[int, str]]:
     """
-    Ambil semua tanaman berdasarkan id_tipe_tanaman.
+    Ambil semua tanaman berdasarkan id_tipe_tanaman
     """
     with conn.cursor() as cur:
         cur.execute(
@@ -1306,8 +1184,7 @@ def get_tanaman_by_tipe(conn, tipe_id: int) -> list[tuple[int, str]]:
 
 def get_all_iklim(conn) -> list[tuple[int, str]]:
     """
-    Ambil semua data dari tabel iklim:
-    (iklim_id, jenis_cuaca)
+    Ambil semua data dari tabel iklim
     """
     with conn.cursor() as cur:
         cur.execute(
@@ -1320,8 +1197,7 @@ def get_all_iklim(conn) -> list[tuple[int, str]]:
 
 def get_all_kondisi_tanah(conn) -> list[tuple[Any, ...]]:
     """
-    Ambil semua data dari tabel kondisi_tanah:
-    (kondisi_tanah_id, kondisi_tanah, ph, kandungan_nutrisi, kelembapan)
+    Ambil semua data dari tabel kondisi_tanah
     """
     with conn.cursor() as cur:
         cur.execute(
@@ -1341,13 +1217,7 @@ def enter_break():
 
 def menu_admin(conn, user):
     """
-    Menu untuk role admin:
-    - Hapus users
-    - Lihat users
-    - Lihat data lahan
-    - Hapus lahan
-    - Input tanaman
-    - Hapus tanaman
+    Menu untuk role admin
     """
 
     while True:
@@ -1576,8 +1446,7 @@ def menu_admin(conn, user):
 
 def menu_petani(conn, user):
     """
-    Menu untuk role petani:
-    - Input lahan milik petani
+    Menu untuk role petani
     """
     petani_id = user["id"]
 
@@ -1648,7 +1517,7 @@ def menu_petani(conn, user):
 
 def update_lahan_ketinggian(conn, lahan_id: int, ketinggian: float) -> bool:
     """
-    Update ketinggian lahan (diisi oleh surveyor).
+    Update ketinggian lahan dari petani
     """
     with conn.cursor() as cur:
         cur.execute(
@@ -1675,8 +1544,7 @@ def cocokin_tanaman(
     iklim_id: int
 ) -> tuple[list[tuple], list[tuple]]:
     """
-    Cari tanaman yang cocok berdasarkan kriteria.
-    Return: (recommended_plants, other_plants)
+    Cari tanaman yang cocok berdasarkan kriterianya
     """
     # Ambil semua tanaman
     with conn.cursor() as cur:
@@ -1744,9 +1612,7 @@ def cocokin_tanaman(
 
 def menu_surveyor(conn, user):
     """
-    Menu untuk role surveyor:
-    1. Survey lahan yang sudah ada (mengisi survey_data lengkap)
-    2. Input tanaman (mengisi tabel tipe_tanaman + tanaman sesuai schema)
+    Menu untuk role surveyor
     """
     surveyor_id = user["id"]
 
@@ -1945,7 +1811,7 @@ def menu_surveyor(conn, user):
 
 def menu_update_profile(conn, user: dict[str, str | int]) -> None:
     """
-    Menu update profil untuk user yang sedang login (petani / surveyor).
+    Menu update profil untuk user
     """
     user_id = user["id"]
     current = get_user_by_id(conn, user_id)
@@ -1999,7 +1865,7 @@ def menu_update_profile(conn, user: dict[str, str | int]) -> None:
 
 def signup(conn: psycopg2.extensions.connection) -> None:
     """
-    Registrasi user baru (petani / surveyor) ke tabel users + user_roles.
+    Registrasi user baru
     """
     print("Mendaftar user baru...")
     role = None
@@ -2039,7 +1905,6 @@ def signup(conn: psycopg2.extensions.connection) -> None:
         return
     role_id = row[0]
 
-    # Insert ke users
     cur.execute(
         """
         INSERT INTO users (name, username, password, email, no_telp, id_alamat)
@@ -2057,7 +1922,6 @@ def signup(conn: psycopg2.extensions.connection) -> None:
 
     user_id = user_row[0]
 
-    # Mapping ke user_roles
     cur.execute(
         """
         INSERT INTO user_roles (id_user, id_role)
@@ -2083,8 +1947,7 @@ def signup(conn: psycopg2.extensions.connection) -> None:
 
 def login(conn: psycopg2.extensions.connection) -> Optional[dict[str, str | int]]:
     """
-    Login untuk admin / petani / surveyor berdasarkan tabel users + roles + user_roles.
-    Return dict user jika berhasil, else None.
+    Login user baru
     """
     print("Logging in...")
     role = None
