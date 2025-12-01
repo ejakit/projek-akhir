@@ -156,7 +156,7 @@ def pilih_alamat_baru(conn) -> int | None:
         print(f"  {pid}. {nama}")
 
     prov_raw = input("Pilih ID provinsi (kosongkan kalau tidak tahu): ").strip()
-    id_prov = int(prov_raw) if prov_raw else None
+    id_prov = int(prov_raw)
 
     # 2. Pilih kota
     kota_list = ambil_semua_data_di_alamat(conn, "kota", "kota_id", "nama_kota")
