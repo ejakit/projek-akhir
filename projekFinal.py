@@ -118,6 +118,37 @@ def input_optional(prompt: str, default: str | None = None) -> str | None:
     val = input(prompt).strip()
     return val if val else default
 
+
+def simpel_lahan_print(row_lahan):
+    print("\n=== Daftar Lahan ===")
+    if not rows:
+        print("\nMasih kosong")
+    else:
+        for (
+            lahan_id,
+            nama_petani,
+            surveyor_id,
+            nama_surveyor,
+            ketinggian,
+            nama_jalan,
+            nama_kecamatan,
+            nama_kota,
+            nama_provinsi,
+            survey_count,
+        ) in rows:
+            if surveyor_id is None:
+                status = "BELUM DIAMBIL"
+            else:
+                status = f"SUDAH DIAMBIL oleh {nama_surveyor}"
+
+            print(
+                f"- ID: {lahan_id} | Petani: {nama_petani} | "
+                f"Ketinggian: {display(ketinggian)} | Alamat: {nama_jalan}, "
+                f"{nama_kecamatan}, {nama_kota}, {nama_provinsi} | Status Survey: {status} | "
+                f"Sudah disurvey selama: {survey_count} hari"
+            )
+
+
 # Alamat
 
 ALAMAT_MASTER_CONFIG = {
@@ -137,66 +168,6 @@ def add_alamat( conn, nama_jalan: str, id_kota: int | None, id_kecamatan: int | 
         row = cur.fetchone()
         conn.commit()
         return row[0] if row else None
-
-
-def pilih_alamat_baru(conn) -> int | None:
-    """
-    user milih alamat baru
-    """
-    print("\n=== Ubah / Tambah Alamat ===")
-
-    # 1. Pilih provinsi
-    prov_list = ambil_semua_data_di_alamat(conn, "provinsi", "provinsi_id", "nama_provinsi")
-    if not prov_list:
-        print("Belum ada data provinsi.")
-        return None
-
-    print("\nDaftar Provinsi:")
-    for pid, nama in prov_list:
-        print(f"  {pid}. {nama}")
-
-    prov_raw = input("Pilih ID provinsi (kosongkan kalau tidak tahu): ").strip()
-    id_prov = int(prov_raw)
-
-    # 2. Pilih kota
-    kota_list = ambil_semua_data_di_alamat(conn, "kota", "kota_id", "nama_kota")
-    if not kota_list:
-        print("Belum ada data kota.")
-        return None
-
-    print("\nDaftar Kota:")
-    for kid, nama in kota_list:
-        print(f"  {kid}. {nama}")
-
-    kota_raw = input("Pilih ID kota (kosongkan kalau tidak tahu): ").strip()
-    id_kota = int(kota_raw) if kota_raw else None
-
-    # 3. Pilih kecamatan
-    kec_list = ambil_semua_data_di_alamat(conn, "kecamatan", "kecamatan_id", "nama_kecamatan")
-    if not kec_list:
-        print("Belum ada data kecamatan.")
-        return None
-
-    print("\nDaftar Kecamatan:")
-    for kid, nama in kec_list:
-        print(f"  {kid}. {nama}")
-
-    kec_raw = input("Pilih ID kecamatan (kosongkan kalau tidak tahu): ").strip()
-    id_kec = int(kec_raw) if kec_raw else None
-
-    # 4. Nama jalan
-    nama_jalan = input("Nama jalan (wajib): ").strip()
-    if not nama_jalan:
-        print("Nama jalan tidak boleh kosong")
-        return None
-
-    alamat_id = add_alamat(conn, nama_jalan, id_kota, id_kec, id_prov)
-    if alamat_id is None:
-        print("Gagal menyimpan alamat.")
-        return None
-
-    print(f"Alamat baru tersimpan dengan ID {alamat_id}.")
-    return alamat_id
 
 
 def pilih_alamat(
@@ -238,35 +209,90 @@ def pilih_alamat(
     return pilih_id
 
 
-def buat_alamat(conn) -> int | None:
-    nama_jalan = input("Nama jalan: ").strip()
-    if not nama_jalan:
-        print("Nama jalan wajib diisi.")
+def kelola_input_lokasi(conn, jenis_tabel: str, label_tampilan: str) -> int | None:
+    """
+    Fungsi untuk memilih dan membuat lokasi
+    """
+    # 1. Ambil data dari database
+    config = ALAMAT_MASTER_CONFIG.get(jenis_tabel)
+    if not config:
+        print(f"Error: Jenis tabel '{jenis_tabel}' tidak dikenal.")
         return None
+        
+    table, id_col, nama_col = config
+    data_list = ambil_semua_data_di_alamat(conn, table, id_col, nama_col)
 
-    nama_provinsi = input("Nama provinsi: ").strip()
-    nama_kota = input("Nama kota: ").strip()
-    nama_kecamatan = input("Nama kecamatan: ").strip()
+    # 2. Tampilkan daftar ke user
+    print(f"\n--- Pilih {label_tampilan} ---")
+    if not data_list:
+        print(f"  (Belum ada data {label_tampilan}, silakan ketik nama baru)")
+    else:
+        for id_val, nama_val in data_list:
+            print(f"  [{id_val}] {nama_val}")
 
-    id_provinsi = cari_atau_buat_alamat(conn, "provinsi", nama_provinsi)
-    id_kota = cari_atau_buat_alamat(conn, "kota", nama_kota)
-    id_kecamatan = cari_atau_buat_alamat(conn, "kecamatan", nama_kecamatan)
+    # 3. Minta input user
+    while True:
+        print(f"\nWajib memilih {label_tampilan} atau buat {label_tampilan} baru")
+        inp = input(f">>> Input {label_tampilan}: ").strip()
 
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            INSERT INTO alamat (nama_jalan, id_kota, id_kecamatan, id_provinsi)
-            VALUES (%s, %s, %s, %s)
-            RETURNING alamat_id;
-            """,
-            (nama_jalan,
-             int(id_kota) if id_kota else None,
-             int(id_kecamatan) if id_kecamatan else None,
-             int(id_provinsi) if id_provinsi else None),
-        )
-        row = cur.fetchone()
-        conn.commit()
-        return row[0] if row else None
+        if not inp:
+            print(f"{label_tampilan} wajib diisi, tidak boleh kosong.")
+            continue
+
+        # Cek apakah input berupa angka (ID)
+        if inp.isdigit():
+            pilihan_id = int(inp)
+            # Cek apakah ID ada di daftar
+            ketemu = False
+            for id_val, _ in data_list:
+                if id_val == pilihan_id:
+                    ketemu = True
+                    break
+            
+            if ketemu:
+                return pilihan_id
+            else:
+                print(f"ID {pilihan_id} tidak ditemukan di daftar.")
+                konfirmasi = input(f"Apakah anda ingin menggunakan angka '{inp}' sebagai NAMA {label_tampilan} baru? (y/n): ").lower().strip()
+                if konfirmasi != 'y':
+                    continue
+        
+        id_baru = cari_atau_buat_alamat(conn, jenis_tabel, inp)
+        return id_baru
+
+
+def buat_alamat(conn) -> int | None:
+    """
+    Buat dan pilih alamat yang ada
+    """
+    while True:
+    # 1. Provinsi
+        id_provinsi = kelola_input_lokasi(conn, "provinsi", "Provinsi")
+        if not id_provinsi:
+            print("Wajib memilih provinsi atau input nama provinsi baru")
+            break
+            
+        # 2. Kota
+        id_kota = kelola_input_lokasi(conn, "kota", "Kota")
+        if not id_kota:
+            print("Wajib memilih kota atau input nama kota baru")
+            break
+            
+        # 3. Kecamatan
+        id_kecamatan = kelola_input_lokasi(conn, "kecamatan", "Kecamatan")
+        if not id_kecamatan:
+            print("Wajib memilih kecamatan atau input nama kecamatan baru")
+            break
+            
+        # 4. Jalan
+    
+        nama_jalan = input("Masukkan Nama Jalan: ").strip()
+        if nama_jalan:
+            break
+        print("Nama jalan tidak boleh kosong.")
+        
+    # Simpan semua
+    return add_alamat(conn, nama_jalan, id_kota, id_kecamatan, id_provinsi)
 
 
 def cari_atau_buat_tabel_alamat(
@@ -775,34 +801,6 @@ def lihat_lahan_universal(conn, user: dict[str, Any]) -> list[tuple[Any, ...]]:
             )
 
         rows = cur.fetchall()
-
-    print("\n=== Daftar Lahan ===")
-    if not rows:
-        print("\nMasih kosong")
-    else:
-        for (
-            lahan_id,
-            nama_petani,
-            surveyor_id,
-            nama_surveyor,
-            ketinggian,
-            nama_jalan,
-            nama_kecamatan,
-            nama_kota,
-            nama_provinsi,
-            survey_count,
-        ) in rows:
-            if surveyor_id is None:
-                status = "BELUM DIAMBIL"
-            else:
-                status = f"SUDAH DIAMBIL oleh {nama_surveyor}"
-
-            print(
-                f"- ID: {lahan_id} | Petani: {nama_petani} | "
-                f"Ketinggian: {display(ketinggian)} | Alamat: {nama_jalan}, "
-                f"{nama_kecamatan}, {nama_kota}, {nama_provinsi} | Status Survey: {status} | "
-                f"Sudah disurvey selama: {survey_count} hari"
-            )
 
     return rows
 
@@ -1460,6 +1458,7 @@ def menu_petani(conn, user):
                 id_alamat=id_alamat,
                 ketinggian=None,
             )
+            
             if lahan_id is not None:
                 print(f"Lahan dengan ID {lahan_id} berhasil ditambahkan.")
             else:
@@ -1467,16 +1466,19 @@ def menu_petani(conn, user):
             enter_break()
 
         elif pilihan == "2":
-            lihat_lahan_universal(conn, user)
+            simpel_lahan_print(lihat_lahan_universal(conn, user))
             enter_break()
+            clear_terminal()
 
         elif pilihan == "3":
             lihat_hasil_survey_petani(conn, user)
             enter_break()
+            clear_terminal()
 
         elif pilihan == "4":
             menu_update_profile(conn, user)
             enter_break()
+            clear_terminal()
 
         elif pilihan == "0":
             print("Logout dari petani.")
@@ -1539,7 +1541,7 @@ def cocokin_tanaman(
     for p in all_plants:
         t_id, t_nama, t_h, t_ph, t_nut, t_hum, t_iklim = p
 
-        # Kalau ada nilai penting yang None, lempar ke others saja
+        # Kalau ada 
         if any(v is None for v in (t_h, t_ph, t_nut, t_hum, t_iklim)):
             others_scored.append((0.0, t_id, t_nama))
             continue
@@ -1595,7 +1597,7 @@ def menu_surveyor(conn, user):
         pilihan = input("Pilih menu: ").strip()
 
         if pilihan == "1":
-            lihat_lahan_universal(conn, user)
+            simpel_lahan_print(lihat_lahan_universal(conn, user))
 
             print("\n=== Input survey data ===")
             try:
@@ -1603,6 +1605,7 @@ def menu_surveyor(conn, user):
             except ValueError:
                 print("ID lahan harus angka.")
                 enter_break()
+                clear_terminal()
                 continue
 
             claim = claim_lahan_for_surveyor(conn, lahan_id, surveyor_id)
@@ -1623,16 +1626,20 @@ def menu_surveyor(conn, user):
                 if real_ketinggian > 3000:
                     print("Ketinggian tidak boleh lebih dari 3000.")
                     enter_break()
+                    clear_terminal()
                     continue
                 update_lahan_ketinggian(conn, lahan_id, real_ketinggian)
             except ValueError:
                 print("Ketinggian harus angka.")
-                real_ketinggian = 0
+                enter_break()
+                clear_terminal()
+                continue
 
             iklim_list = get_all_iklim(conn)
             if not iklim_list:
                 print("Belum ada data iklim, isi dulu tabel iklim.")
                 enter_break()
+                clear_terminal()
                 continue
 
             print("\nPilih Iklim:")
@@ -1644,6 +1651,7 @@ def menu_surveyor(conn, user):
             except ValueError:
                 print("ID iklim harus angka.")
                 enter_break()
+                clear_terminal()
                 continue
 
             kondisi_tanah = str(input("Kondisi tanah (gembur/lumpur/subur): ").strip())
@@ -1651,16 +1659,19 @@ def menu_surveyor(conn, user):
             if ph > 14:
                 print("pH tidak boleh lebih dari 14.")
                 enter_break()
+                clear_terminal()
                 continue
             nutrisi = float(input("Nutrisi (misal: 7.0): ").strip())
             if nutrisi > 100:
                 print("Nutrisi tidak boleh lebih dari 100.")
                 enter_break()
+                clear_terminal()
                 continue
             kelembapan = float(input("Kelembapan (misal: 6.0): ").strip())
             if kelembapan > 100:
                 print("Kelembapan tidak boleh lebih dari 100.")
                 enter_break()
+                clear_terminal()
                 continue
 
             with conn.cursor() as cur:
@@ -1677,6 +1688,7 @@ def menu_surveyor(conn, user):
             if not row or row[0] is None:
                 print("Gagal menambahkan kondisi tanah.")
                 enter_break()
+                clear_terminal()
                 continue
 
             id_tanah = row[0]
@@ -1697,6 +1709,7 @@ def menu_surveyor(conn, user):
                     "Rekomendasi tanaman akan muncul setelah 3 kali survey."
                 )
                 enter_break()
+                clear_terminal()
                 continue
             
             print("\n=== HASIL ANALISIS & REKOMENDASI ===")
@@ -1713,7 +1726,7 @@ def menu_surveyor(conn, user):
                 print("\nTidak ada tanaman yang pas 100% dengan kriteria.")
 
             print(f"\nTanaman Lainnya ({len(others)}):")
-            # Tampilkan max 5 aja biar ga penuh
+            # Nampilin 5 rekomendasi lainnya
             for o_id, o_nama in others[:5]:
                 print(f"  - ID {o_id}: {o_nama}")
             if len(others) > 5:
@@ -1852,14 +1865,14 @@ def signup(conn: psycopg2.extensions.connection) -> None:
 
     cur = conn.cursor()
 
-    # Cek username sudah ada
+    # Cek username 
     cur.execute("SELECT 1 FROM users WHERE username = %s", (username,))
     if cur.fetchone():
         print("Username sudah terdaftar, coba username lain.")
         cur.close()
         return
 
-    # Ambil role_id dari tabel roles
+    # Ambil id_roles
     cur.execute(
         "SELECT role_id FROM roles WHERE LOWER(nama_role) = LOWER(%s)",
         (role,),
@@ -2006,6 +2019,3 @@ if __name__ == '__main__':
         exit(0)
     finally:
         conn.close()
-
-
-
