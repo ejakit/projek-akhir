@@ -187,7 +187,7 @@ def pilih_alamat_baru(conn) -> int | None:
     # 4. Nama jalan
     nama_jalan = input("Nama jalan (wajib): ").strip()
     if not nama_jalan:
-        print("Nama jalan tidak boleh kosong.")
+        print("Nama jalan tidak boleh kosong")
         return None
 
     alamat_id = add_alamat(conn, nama_jalan, id_kota, id_kec, id_prov)
