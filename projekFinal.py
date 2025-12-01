@@ -199,7 +199,7 @@ def pilih_alamat_baru(conn) -> int | None:
     return alamat_id
 
 
-def pilih_master_alamat(
+def pilih_alamat(
     conn,
     table: str,
     id_col: str,
@@ -238,14 +238,35 @@ def pilih_master_alamat(
     return pilih_id
 
 
-def pilih_master(conn, jenis: str) -> int | None:
-    jenis = jenis.lower()
-    if jenis not in ALAMAT_MASTER_CONFIG:
-        print(f"Jenis '{jenis}' tidak dikenal (harusnya: provinsi/kota/kecamatan).")
+def buat_alamat(conn) -> int | None:
+    nama_jalan = input("Nama jalan: ").strip()
+    if not nama_jalan:
+        print("Nama jalan wajib diisi.")
         return None
 
-    table, id_col, nama_col = ALAMAT_MASTER_CONFIG[jenis]
-    return pilih_master_alamat(conn, table, id_col, nama_col, jenis)
+    nama_provinsi = input("Nama provinsi: ").strip()
+    nama_kota = input("Nama kota: ").strip()
+    nama_kecamatan = input("Nama kecamatan: ").strip()
+
+    id_provinsi = cari_atau_buat_alamat(conn, "provinsi", nama_provinsi)
+    id_kota = cari_atau_buat_alamat(conn, "kota", nama_kota)
+    id_kecamatan = cari_atau_buat_alamat(conn, "kecamatan", nama_kecamatan)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO alamat (nama_jalan, id_kota, id_kecamatan, id_provinsi)
+            VALUES (%s, %s, %s, %s)
+            RETURNING alamat_id;
+            """,
+            (nama_jalan,
+             int(id_kota) if id_kota else None,
+             int(id_kecamatan) if id_kecamatan else None,
+             int(id_provinsi) if id_provinsi else None),
+        )
+        row = cur.fetchone()
+        conn.commit()
+        return row[0] if row else None
 
 
 def cari_atau_buat_tabel_alamat(
@@ -417,7 +438,6 @@ def delete_user(
     """
     with conn.cursor() as cur:
         if role_name:
-            # Pastikan user dengan role tertentu
             cur.execute(
                 """
                 SELECT u.user_id
@@ -430,7 +450,6 @@ def delete_user(
                 (username, role_name),
             )
         else:
-            # Hanya berdasarkan username
             cur.execute(
                 "SELECT user_id FROM users WHERE username = %s",
                 (username,),
@@ -443,7 +462,6 @@ def delete_user(
 
         user_id = row[0]
 
-        # Hapus dulu dari user_roles (FK)
         cur.execute("DELETE FROM user_roles WHERE id_user = %s", (user_id,))
         # Hapus dari users
         cur.execute(
@@ -484,9 +502,7 @@ def update_user_profile(
     id_alamat: Optional[int] = None,
 ) -> bool:
     """
-    Update profil user di tabel users.
-    Field yang None tidak akan di-update.
-    Return True kalau ada baris yang berubah.
+    Update profil user di tabel users
     """
     fields = []
     values: list[Any] = []
@@ -962,37 +978,6 @@ def claim_lahan_for_surveyor(
         return False
 
 
-def buat_alamat(conn) -> int | None:
-    nama_jalan = input("Nama jalan: ").strip()
-    if not nama_jalan:
-        print("Nama jalan wajib diisi.")
-        return None
-
-    nama_provinsi = input("Nama provinsi (boleh kosong): ").strip()
-    nama_kota = input("Nama kota (boleh kosong): ").strip()
-    nama_kecamatan = input("Nama kecamatan (boleh kosong): ").strip()
-
-    id_provinsi = cari_atau_buat_alamat(conn, "provinsi", nama_provinsi) if nama_provinsi else None
-    id_kota = cari_atau_buat_alamat(conn, "kota", nama_kota) if nama_kota else None
-    id_kecamatan = cari_atau_buat_alamat(conn, "kecamatan", nama_kecamatan) if nama_kecamatan else None
-
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            INSERT INTO alamat (nama_jalan, id_kota, id_kecamatan, id_provinsi)
-            VALUES (%s, %s, %s, %s)
-            RETURNING alamat_id;
-            """,
-            (nama_jalan,
-             int(id_kota) if id_kota else None,
-             int(id_kecamatan) if id_kecamatan else None,
-             int(id_provinsi) if id_provinsi else None),
-        )
-        row = cur.fetchone()
-        conn.commit()
-        return row[0] if row else None
-
-
 def hitung_rata_tanah_3_hari_terakhir(conn, lahan_id: int):
     query = """
         SELECT 
@@ -1459,18 +1444,9 @@ def menu_petani(conn, user):
         pilihan = input("Pilih menu: ").strip()
 
         if pilihan == "1":
-            print("\n=== Input Data Lahan Milik Saya ===")
+            print("\n=== Input Data Lahan milik Saya ===")
 
-            mode = input("1. Pilih alamat yang sudah ada\n2. Buat alamat baru\nPilih: ").strip()
-
-            if mode == "1":
-                id_alamat = pilih_alamat_baru(conn)
-            elif mode == "2":
-                id_alamat = buat_alamat(conn)
-            else:
-                print("Pilihan mode alamat tidak valid.")
-                enter_break()
-                continue
+            id_alamat = buat_alamat(conn)
 
             if id_alamat is None:
                 print("Alamat nya masih kosong")
@@ -1575,10 +1551,10 @@ def cocokin_tanaman(
         match_hum = abs(kelembapan - t_hum) <= 15      # persen
         match_ik  = (iklim_id == t_iklim)
 
-        # Bobot tiap parameter (bisa kamu tweak)
+        # Scoring tiap kolom
         score = 0.0
         if match_ik:
-            score += 3.0   # iklim paling penting
+            score += 3.0
         if match_h:
             score += 2.0
         if match_ph:
@@ -1588,15 +1564,11 @@ def cocokin_tanaman(
         if match_hum:
             score += 1.0
 
-        # Kriteria "recommended":
-        # - iklim harus match
-        # - skor minimal 5 dari total max 9
         if match_ik and score >= 5.0:
             recommended_scored.append((score, t_id, t_nama))
         else:
             others_scored.append((score, t_id, t_nama))
 
-    # Sort biar yang paling cocok di atas
     recommended_scored.sort(reverse=True)
     others_scored.sort(reverse=True)
 
@@ -1833,12 +1805,11 @@ def menu_update_profile(conn, user: dict[str, str | int]) -> None:
     new_password = pw_raw or None
 
     ubah_alamat = input("Ingin mengubah alamat? (y/n): ").strip().lower()
-    new_id_alamat = current["id_alamat"]
+    id_alamat_baru = current["id_alamat"]
 
     if ubah_alamat == "y":
-        alamat_id_baru = pilih_alamat_baru(conn)
-        if alamat_id_baru is not None:
-            new_id_alamat = alamat_id_baru
+        id_alamat_baru = buat_alamat(conn)
+
 
     updated = update_user_profile(
         conn,
@@ -1847,7 +1818,7 @@ def menu_update_profile(conn, user: dict[str, str | int]) -> None:
         email=new_email,
         no_telp=new_no_telp,
         password=new_password,
-        id_alamat=new_id_alamat,
+        id_alamat=id_alamat_baru,
     )
 
     if updated:
@@ -1877,7 +1848,7 @@ def signup(conn: psycopg2.extensions.connection) -> None:
     isi_alamat = input("Input alamat mu sekarang? (y/n): ").strip().lower()
     id_alamat = None
     if isi_alamat == "y":
-        id_alamat = pilih_alamat_baru(conn)
+        id_alamat = buat_alamat(conn)
 
     cur = conn.cursor()
 
@@ -1955,7 +1926,7 @@ def login(conn: psycopg2.extensions.connection) -> Optional[dict[str, str | int]
     password = input("Password: ").strip()
 
     cur = conn.cursor()
-    # Cek user + password + role
+    # Cek user password role
     cur.execute(
         """
         SELECT

@@ -115,9 +115,9 @@ CREATE TABLE IF NOT EXISTS tanaman(
 );
 
 INSERT INTO tipe_tanaman(jenis_tanaman) VALUES
-                            ('Holticultura'),
-                            ('Agrivultura'),
-                            ('Umbi-Umbian');
+    ('Holticultura'),
+    ('Agrivultura'),
+    ('Umbi-Umbian');
 
 INSERT INTO tanaman (
     id_tipe_tanaman,
