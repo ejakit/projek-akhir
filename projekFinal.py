@@ -233,7 +233,7 @@ def kelola_input_lokasi(conn, jenis_tabel: str, label_tampilan: str) -> int | No
     # 3. Minta input user
     while True:
         print(f"\nWajib memilih {label_tampilan} atau buat {label_tampilan} baru")
-        inp = input(f">>> Input {label_tampilan}: ").strip()
+        inp = input(f"Input {label_tampilan}: ").strip()
 
         if not inp:
             print(f"{label_tampilan} wajib diisi, tidak boleh kosong.")
@@ -291,7 +291,6 @@ def buat_alamat(conn) -> int | None:
             break
         print("Nama jalan tidak boleh kosong.")
         
-    # Simpan semua
     return add_alamat(conn, nama_jalan, id_kota, id_kecamatan, id_provinsi)
 
 
@@ -356,73 +355,13 @@ def ambil_semua_data_di_alamat(
 def get_all_alamat_master(conn, jenis: str) -> list[tuple[int, str]]:
     jenis = jenis.lower()
     if jenis not in ALAMAT_MASTER_CONFIG:
-        print(f"Jenis '{jenis}' tidak dikenal (harusnya: provinsi/kota/kecamatan).")
+        print(f"Jenis '{jenis}' tidak dikenal")
         return []
 
     table, id_col, nama_col = ALAMAT_MASTER_CONFIG[jenis]
     return ambil_semua_data_di_alamat(conn, table, id_col, nama_col)
 
 # Fungsi admin
-
-def add_user(
-        conn,
-        name: str,
-        username: str,
-        password: str,
-        role_name: str,
-        email: str | None = None,
-        no_telp: str | None = None,
-) -> Optional[tuple[int, str, str]]:
-    """
-    Tambah user baru ke tabel users + set role di user_roles.
-    :return: (user_id, username, role_name) atau None jika username sudah ada / role tidak ditemukan.
-    """
-    with conn.cursor() as cur:
-        # Cek username sudah ada atau belum
-        cur.execute("SELECT 1 FROM users WHERE username = %s", (username,))
-        if cur.fetchone():
-            print("Username sudah ada.")
-            return None
-
-        # Ambil role_id
-        cur.execute(
-            "SELECT role_id FROM roles WHERE LOWER(nama_role) = LOWER(%s)",
-            (role_name,),
-        )
-        role_row = cur.fetchone()
-        if not role_row:
-            print(f"Role '{role_name}' tidak ditemukan di tabel roles.")
-            return None
-        role_id = role_row[0]
-
-        # Insert ke users
-        cur.execute(
-            """
-            INSERT INTO users (name, username, password, email, no_telp)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING user_id, username;
-            """,
-            (name, username, password, email, no_telp),
-        )
-        user_row = cur.fetchone()
-        if not user_row:
-            conn.rollback()
-            return None
-        user_id, username_db = user_row
-
-        # Insert ke user_roles
-        cur.execute(
-            """
-            INSERT INTO user_roles (id_user, id_role)
-            VALUES (%s, %s)
-            """,
-            (user_id, role_id),
-        )
-
-        conn.commit()
-        print(f"User {username_db} dengan role {role_name} berhasil dibuat.")
-        return user_id, username_db, role_name
-
 
 def get_user_by_id(conn: psycopg2.extensions.connection, user_id: int) -> Optional[dict[str, Any]]:
     """
@@ -1541,7 +1480,7 @@ def cocokin_tanaman(
     for p in all_plants:
         t_id, t_nama, t_h, t_ph, t_nut, t_hum, t_iklim = p
 
-        # Kalau ada 
+        # Kalau ada nilai yang kosong, masuk kategori lain
         if any(v is None for v in (t_h, t_ph, t_nut, t_hum, t_iklim)):
             others_scored.append((0.0, t_id, t_nama))
             continue
@@ -1966,7 +1905,7 @@ def login(conn: psycopg2.extensions.connection) -> Optional[dict[str, str | int]
             "id": user_id,
             "username": username_db,
             "name": name_db,
-            "role": role_db.lower(),  # konsisten dengan yang dipakai di fungsi lain
+            "role": role_db.lower(),
         }
         print(f"Login berhasil! Anda masuk sebagai {role_db}: {username_db}")
         return user
