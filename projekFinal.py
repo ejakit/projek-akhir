@@ -1662,7 +1662,7 @@ def menu_surveyor(conn, user):
                 for r_id, r_nama in recom:
                     print(f"  - ID {r_id}: {r_nama}")
             else:
-                print("\nTidak ada tanaman yang pas 100% dengan kriteria.")
+                print("\nTidak ada tanaman yang pas dengan kriteria.")
 
             print(f"\nTanaman Lainnya ({len(others)}):")
             # Nampilin 5 rekomendasi lainnya
