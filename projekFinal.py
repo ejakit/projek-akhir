@@ -13,9 +13,9 @@ from pyfiglet import Figlet
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'postgres',
-    'port': '5400',
-    'password': '1234',
-    'database': 'projek-akhir',
+    'port': '5432',
+    'password': '23',
+    'database': 'ejak',
 }
 
 
@@ -121,7 +121,7 @@ def input_optional(prompt: str, default: str | None = None) -> str | None:
 
 def simpel_lahan_print(row_lahan):
     print("\n=== Daftar Lahan ===")
-    if not rows:
+    if not row_lahan:
         print("\nMasih kosong")
     else:
         for (
@@ -135,7 +135,7 @@ def simpel_lahan_print(row_lahan):
             nama_kota,
             nama_provinsi,
             survey_count,
-        ) in rows:
+        ) in row_lahan:
             if surveyor_id is None:
                 status = "BELUM DIAMBIL"
             else:
